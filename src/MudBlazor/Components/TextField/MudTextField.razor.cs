@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -47,6 +48,14 @@ namespace MudBlazor
                 return _maskReference.FocusAsync();
         }
 
+        public override ValueTask BlurAsync()
+        {
+            if (_mask == null)
+                return InputReference.BlurAsync();
+            else
+                return _maskReference.BlurAsync();
+        }
+
         public override ValueTask SelectAsync()
         {
             if (_mask == null)
@@ -63,13 +72,24 @@ namespace MudBlazor
                 return _maskReference.SelectRangeAsync(pos1, pos2);
         }
 
+        [Obsolete($"Use {nameof(ResetValueAsync)} instead. This will be removed in v7")]
+        [ExcludeFromCodeCoverage]
         protected override void ResetValue()
         {
-            if(_mask == null)            
-                InputReference.Reset();            
-            else            
-                _maskReference.Reset();            
+            if (_mask == null)
+                InputReference.Reset();
+            else
+                _maskReference.Reset();
             base.ResetValue();
+        }
+
+        protected override async Task ResetValueAsync()
+        {
+            if (_mask == null)
+                await InputReference.ResetAsync();
+            else
+                await _maskReference.ResetAsync();
+            await base.ResetValueAsync();
         }
 
         /// <summary>
@@ -89,12 +109,16 @@ namespace MudBlazor
         /// </summary>
         /// <param name="text"></param>
         /// <returns></returns>
-        public Task SetText(string text)
+        public async Task SetText(string text)
         {
             if (_mask == null)
-                return InputReference?.SetText(text);
-            else
-                return _maskReference.Clear().ContinueWith(t => _maskReference.OnPaste(text));
+            {
+                if (InputReference != null)
+                    await InputReference.SetText(text);
+                return;
+            }
+            await _maskReference.Clear();
+            _maskReference.OnPaste(text);
         }
 
 
@@ -115,15 +139,16 @@ namespace MudBlazor
             }
         }
 
-        protected override Task SetValueAsync(T value, bool updateText = true)
+        protected override Task SetValueAsync(T value, bool updateText = true, bool force = false)
         {
             if (_mask != null)
             {
                 var textValue = Converter.Set(value);
                 _mask.SetText(textValue);
-                textValue=Mask.GetCleanText();
+                textValue = Mask.GetCleanText();
                 value = Converter.Get(textValue);
             }
+
             return base.SetValueAsync(value, updateText);
         }
 

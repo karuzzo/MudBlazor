@@ -4,21 +4,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MudBlazor.Services
 {
+#nullable enable
     public class SubscriptionInfo<TAction,TOption>
     {
-        private Dictionary<Guid, Action<TAction>> _subscriptions;
+        private readonly Dictionary<Guid, Action<TAction>> _subscriptions;
         public TOption Option { get; init; }
 
         public SubscriptionInfo(TOption options)
         {
-            _subscriptions = new();
-
             Option = options;
             _subscriptions = new();
         }
@@ -26,7 +22,7 @@ namespace MudBlazor.Services
         public Guid AddSubscription(Action<TAction> action)
         {
             var id = Guid.NewGuid();
-            _subscriptions.Add(id, action);
+            _subscriptions.TryAdd(id, action);
 
             return id;
         }
@@ -35,7 +31,10 @@ namespace MudBlazor.Services
 
         public bool RemoveSubscription(Guid listenerId)
         {
-            _subscriptions.Remove(listenerId);
+            if (_subscriptions.ContainsKey(listenerId))
+            {
+                _subscriptions.Remove(listenerId);
+            }
             return _subscriptions.Count == 0;
         }
 

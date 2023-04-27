@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -13,7 +14,8 @@ namespace MudBlazor
         /// Potential activation target for this button. This enables RenderFragments with user-defined
         /// buttons which will automatically activate the intended functionality. 
         /// </summary>
-        [CascadingParameter] protected IActivatable Activateable { get; set; }
+        [CascadingParameter] 
+        protected IActivatable Activateable { get; set; }
 
         /// <summary>
         /// The HTML element that will be rendered in the root by the component
@@ -35,7 +37,19 @@ namespace MudBlazor
         /// </summary>
         [Parameter]
         [Category(CategoryTypes.Button.ClickAction)]
-        public string Link { get; set; }
+        public string Href { get; set; }
+        /// <summary>
+        /// If set to a URL, clicking the button will open the referenced document. Use Target to specify where (Obsolete replaced by Href)
+        /// </summary>
+        
+        [Obsolete("Use Href Instead.", false)]
+        [Parameter]
+        [Category(CategoryTypes.Button.ClickAction)]
+        public string Link
+        {
+            get => Href;
+            set => Href = value;
+        }
 
         /// <summary>
         /// The target attribute specifies where to open the link, if Link is specified. Possible values: _blank | _self | _parent | _top | <i>framename</i>
@@ -50,6 +64,9 @@ namespace MudBlazor
         [Parameter]
         [Category(CategoryTypes.Button.Behavior)]
         public bool Disabled { get; set; }
+        [CascadingParameter(Name = "ParentDisabled")]
+        private bool ParentDisabled { get; set; }
+        protected bool GetDisabledState() => Disabled || ParentDisabled;
 
         /// <summary>
         /// If true, no drop-shadow will be used.
@@ -84,9 +101,9 @@ namespace MudBlazor
         /// </summary>
         [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
 
-        protected async Task OnClickHandler(MouseEventArgs ev)
+        protected virtual async Task OnClickHandler(MouseEventArgs ev)
         {
-            if (Disabled)
+            if (GetDisabledState())
                 return;
             await OnClick.InvokeAsync(ev);
             if (Command?.CanExecute(CommandParameter) ?? false)
@@ -110,16 +127,16 @@ namespace MudBlazor
         //Set the default value for HtmlTag, Link and Target 
         private void SetDefaultValues()
         {
-            if (Disabled)
+            if (GetDisabledState())
             {
                 HtmlTag = "button";
-                Link = null;
+                Href = null;
                 Target = null;
                 return;
             }
 
             // Render an anchor element if Link property is set and is not disabled
-            if (!IsNullOrWhiteSpace(Link))
+            if (!IsNullOrWhiteSpace(Href))
             {
                 HtmlTag = "a";
             }

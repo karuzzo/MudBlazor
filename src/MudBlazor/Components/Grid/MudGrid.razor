@@ -1,6 +1,5 @@
 ﻿@namespace MudBlazor
 @using MudBlazor.Utilities
-@using MudBlazor.Extensions
 @inherits MudComponentBase
 
 <CascadingValue Value="this" IsFixed="true">
@@ -14,7 +13,7 @@
     protected string Classname =>
     new CssBuilder("mud-grid")
       .AddClass($"mud-grid-spacing-xs-{Spacing.ToString()}")
-      .AddClass($"mud-grid-justify-xs-{Justify.ToDescriptionString()}")
+      .AddClass($"justify-{Justify.ToDescriptionString()}")
       .AddClass(Class)
     .Build();
 

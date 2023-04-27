@@ -12,7 +12,7 @@ namespace MudBlazor.Docs.Services
     {
         NavigationFooterLink Next { get; }
         NavigationFooterLink Previous { get; }
-        NavigationSection? Section { get; }
+        NavigationSection Section { get; }
     }
 
 
@@ -38,12 +38,11 @@ namespace MudBlazor.Docs.Services
         /// </summary>
         public NavigationFooterLink Next => GetNavigationLink(NavigationOrder.Next);
 
-
-        /// TODO add "get-started" and remaining sections
+        
         /// <summary>
         /// The section of the menu: components or api
         /// </summary>
-        public NavigationSection? Section
+        public NavigationSection Section
         {
             get
             {
@@ -54,7 +53,8 @@ namespace MudBlazor.Docs.Services
                     "api" => NavigationSection.Api,
                     "features" => NavigationSection.Features,
                     "customization" => NavigationSection.Customization,
-                    _ => null,
+                    "utilities" => NavigationSection.Utilities,
+                    _ => NavigationSection.Unspecified,
                 };
             }
         }
@@ -99,7 +99,7 @@ namespace MudBlazor.Docs.Services
         /// </summary>
         /// <param name="section"> components or api </param>
         /// <returns></returns>
-        private List<NavigationFooterLink> GetOrderedMenuLinks(NavigationSection? section)
+        private List<NavigationFooterLink> GetOrderedMenuLinks(NavigationSection section)
         {
             if (section == NavigationSection.Api || section == NavigationSection.Components)
             {
@@ -134,6 +134,7 @@ namespace MudBlazor.Docs.Services
                 {
                     NavigationSection.Customization => _menuService.Customization,
                     NavigationSection.Features => _menuService.Features,
+                    NavigationSection.Utilities => _menuService.Utilities,
                     _ => Array.Empty<DocsLink>()
                 };
 
@@ -159,6 +160,9 @@ namespace MudBlazor.Docs.Services
                 case NavigationSection.Customization:
                     thisSection = NavigationSection.Customization;
                     break;
+                case NavigationSection.Utilities:
+                    thisSection = NavigationSection.Utilities;
+                    break;
             }
 
             return thisSection;
@@ -169,7 +173,7 @@ namespace MudBlazor.Docs.Services
 
     public enum NavigationOrder { Previous, Next }
 
-    public enum NavigationSection { Api, Components, Features, Customization, Unspecified }
+    public enum NavigationSection { Unspecified = 0, Api, Components, Features, Customization, Utilities }
 
     #endregion
 }

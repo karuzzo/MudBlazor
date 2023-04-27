@@ -11,12 +11,25 @@ namespace MudBlazor.UnitTests.Components
     [TestFixture]
     public class ExpansionPanelTests : BunitTest
     {
+
+        [OneTimeSetUp]
+        public void Init()
+        {
+            AssertionOptions.FormattingOptions.MaxDepth = 100;
+        }
+
+        [OneTimeTearDown]
+        public void Cleanup()
+        {
+            AssertionOptions.FormattingOptions.MaxDepth = 5;
+        }
+
         /// <summary>
         /// Expansion panel must expand and collapse in the right order
         /// Here we are open the first, then the third and then the second
         /// </summary>
         [Test]
-        public void MudExpansionPanel_Respects_Collapsing_Order()
+        public async Task MudExpansionPanel_Respects_Collapsing_Order()
         {
             var comp = Context.RenderComponent<ExpansionPanelExpansionsTest>();
             //the order in which the panels are going to be clicked
@@ -24,8 +37,7 @@ namespace MudBlazor.UnitTests.Components
             var sequence = new List<int> { 0, 2, 1 };
             foreach (var item in sequence)
             {
-                var header = comp.FindAll(".mud-expand-panel-header")[item];
-                header.Click();
+                await comp.InvokeAsync(() => comp.FindAll(".mud-expand-panel-header")[item].Click());
 
                 var panels = comp.FindAll(".mud-expand-panel").ToList();
 
@@ -122,6 +134,20 @@ namespace MudBlazor.UnitTests.Components
             //we could close them all
             panels = comp.FindAll(".mud-panel-expanded").ToList();
             panels.Count.Should().Be(0);
+        }
+
+        [Test]
+        public async Task MudExpansionPanel_Other()
+        {
+            var comp = Context.RenderComponent<ExpansionPanelStartExpandedTest>();
+            var panel = comp.FindComponent<MudExpansionPanel>();
+#pragma warning disable BL0005
+            await comp.InvokeAsync(() => panel.Instance.Disabled = true);
+            await comp.InvokeAsync(() => panel.Instance.ToggleExpansion());
+            await comp.InvokeAsync(() => panel.Instance.Expand());
+            comp.WaitForAssertion(() => panel.Instance.IsExpanded.Should().BeTrue());
+            await comp.InvokeAsync(() => panel.Instance.Collapse());
+            comp.WaitForAssertion(() => panel.Instance.IsExpanded.Should().BeFalse());
         }
 
         /// <summary>

@@ -3,125 +3,194 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Numerics;
 
 namespace MudBlazor
 {
+#nullable enable
     public class FilterDefinition<T>
     {
-        public Guid Id { get; set; }
-        public string Field { get; set; }
-        public string Operator { get; set; }
-        public object Value { get; set; }
+        private int _cachedExpressionHashCode;
+        private Func<T, bool>? _cachedFilterFunction;
 
-        private Type dataType
+        internal MudDataGrid<T>? DataGrid { get; set; }
+
+        internal LambdaExpression? PropertyExpression { get; set; }
+
+        public Guid Id { get; set; } = Guid.NewGuid();
+
+        public Column<T>? Column { get; set; }
+        public string? Title { get; set; }
+        public string? Operator { get; set; }
+        public object? Value { get; set; }
+        public Func<T, bool>? FilterFunction { get; set; }
+
+        public FieldType FieldType => FieldType.Identify(Column?.PropertyType);
+
+        internal Type dataType
         {
             get
             {
-                return Field == null ? typeof(object) : typeof(T).GetProperty(Field).PropertyType;
+                if (Column is null)
+                    return typeof(object);
+
+                return Column.PropertyType;
             }
         }
 
-        /// <summary>
-        /// This should be in a separate utility class.
-        /// </summary>
-        internal static readonly HashSet<Type> NumericTypes = new HashSet<Type>
+        public Func<T, bool> GenerateFilterFunction()
         {
-            typeof(int),
-            typeof(double),
-            typeof(decimal),
-            typeof(long),
-            typeof(short),
-            typeof(sbyte),
-            typeof(byte),
-            typeof(ulong),
-            typeof(ushort),
-            typeof(uint),
-            typeof(float),
-            typeof(BigInteger)
-        };
+            if (FilterFunction is not null)
+                return FilterFunction;
 
-        private bool isNumber
-        {
-            get
+            if (Column is null)
+                return x => true;
+
+            // We need a PropertyExpression to filter. This allows us to pass in an arbitrary PropertyExpression.
+            // Although, it would be better in that case to simple use the FilterFunction so that we do not 
+            // have to generate and compile anything.
+            PropertyExpression ??= Column.PropertyExpression;
+
+            var hash = HashCode.Combine(PropertyExpression, Operator, Value);
+
+            if (_cachedExpressionHashCode == hash && _cachedFilterFunction is not null)
             {
-                return NumericTypes.Contains(dataType);
+                return _cachedFilterFunction;
             }
+
+            var expression = GenerateFilterExpression();
+            var f = expression.Compile();
+            _cachedExpressionHashCode = hash;
+            _cachedFilterFunction = f;
+
+            return f;
         }
 
-        internal Func<T, bool> GenerateFilterFunction()
+        public Expression<Func<T, bool>> GenerateFilterExpression()
         {
-            // short circuit
-            if (Value == null)
-                return new Func<T, bool>(x => true);
+            var fieldType = FieldType;
 
-            var parameter = Expression.Parameter(typeof(T), "x");
-
-            Expression comparison = Expression.Empty();
-
-            if (dataType == typeof(string))
+            if (PropertyExpression is null)
             {
-                var field = Expression.Property(parameter, typeof(T).GetProperty(Field));
-                var valueString = Value?.ToString();
+                return x => true;
+            }
 
-                switch (Operator)
+            if (fieldType.IsString)
+            {
+                var value = Value?.ToString();
+                var stringComparer = DataGrid?.FilterCaseSensitivity == DataGridFilterCaseSensitivity.Default ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+                if (value is null && Operator != FilterOperator.String.Empty && Operator != FilterOperator.String.NotEmpty)
+                    return x => true;
+
+                return Operator switch
                 {
-                    case "contains":
-                        comparison = Expression.Call(field, dataType.GetMethod("Contains", new[] { dataType }), Expression.Constant(valueString));
-                        break;
-                    case "equals":
-                        comparison = Expression.MakeBinary(ExpressionType.Equal, field, Expression.Constant(valueString));
-                        break;
-                    case "starts with":
-                        comparison = Expression.Call(field, dataType.GetMethod("StartsWith", new[] { dataType }), Expression.Constant(valueString));
-                        break;
-                    case "ends with":
-                        comparison = Expression.Call(field, dataType.GetMethod("EndsWith", new[] { dataType }), Expression.Constant(valueString));
-                        break;
-                    default:
-                        return new Func<T, bool>(x => true);
-                }
+                    FilterOperator.String.Contains =>
+                        PropertyExpression.Modify<T>((Expression<Func<string?, bool>>)(x => value != null && x != null && x.Contains(value, stringComparer))),
+                    FilterOperator.String.NotContains =>
+                        PropertyExpression.Modify<T>((Expression<Func<string?, bool>>)(x => value != null && x != null && !x.Contains(value, stringComparer))),
+                    FilterOperator.String.Equal =>
+                        PropertyExpression.Modify<T>((Expression<Func<string?, bool>>)(x => x != null && x.Equals(value, stringComparer))),
+                    FilterOperator.String.NotEqual =>
+                        PropertyExpression.Modify<T>((Expression<Func<string?, bool>>)(x => x != null && !x.Equals(value, stringComparer))),
+                    FilterOperator.String.StartsWith =>
+                        PropertyExpression.Modify<T>((Expression<Func<string?, bool>>)(x => value != null && x != null && x.StartsWith(value, stringComparer))),
+                    FilterOperator.String.EndsWith =>
+                        PropertyExpression.Modify<T>((Expression<Func<string?, bool>>)(x => value != null && x != null && x.EndsWith(value, stringComparer))),
+                    FilterOperator.String.Empty => PropertyExpression.Modify<T>((Expression<Func<string?, bool>>)(x => string.IsNullOrWhiteSpace(x))),
+                    FilterOperator.String.NotEmpty => PropertyExpression.Modify<T>((Expression<Func<string?, bool>>)(x => !string.IsNullOrWhiteSpace(x))),
+                    _ => x => true
+                };
             }
-            else if (isNumber)
-            {
-                var field = Expression.Convert(Expression.Property(parameter, typeof(T).GetProperty(Field)), typeof(double));
-                var valueNumber = Value == null ? 0 : Convert.ToDouble(Value);
 
-                switch (Operator)
+            if (fieldType.IsNumber)
+            {
+                if (Value == null && Operator != FilterOperator.Number.Empty && Operator != FilterOperator.Number.NotEmpty)
+                    return x => true;
+
+                return Operator switch
                 {
-                    case "=":
-                        comparison = Expression.MakeBinary(ExpressionType.Equal, field, Expression.Constant(valueNumber));
-                        break;
-                    case "!=":
-                        comparison = Expression.MakeBinary(ExpressionType.NotEqual, field, Expression.Constant(valueNumber));
-                        break;
-                    case ">":
-                        comparison = Expression.MakeBinary(ExpressionType.GreaterThan, field, Expression.Constant(valueNumber));
-                        break;
-                    case ">=":
-                        comparison = Expression.MakeBinary(ExpressionType.GreaterThanOrEqual, field, Expression.Constant(valueNumber));
-                        break;
-                    case "<":
-                        comparison = Expression.MakeBinary(ExpressionType.LessThan, field, Expression.Constant(valueNumber));
-                        break;
-                    case "<=":
-                        comparison = Expression.MakeBinary(ExpressionType.LessThanOrEqual, field, Expression.Constant(valueNumber));
-                        break;
-                    default:
-                        return new Func<T, bool>(x => true);
-                }
+                    FilterOperator.Number.Equal => PropertyExpression.GenerateBinary<T>(ExpressionType.Equal, Value),
+                    FilterOperator.Number.NotEqual => PropertyExpression.GenerateBinary<T>(ExpressionType.NotEqual, Value),
+                    FilterOperator.Number.GreaterThan => PropertyExpression.GenerateBinary<T>(ExpressionType.GreaterThan, Value),
+                    FilterOperator.Number.GreaterThanOrEqual => PropertyExpression.GenerateBinary<T>(ExpressionType.GreaterThanOrEqual, Value),
+                    FilterOperator.Number.LessThan => PropertyExpression.GenerateBinary<T>(ExpressionType.LessThan, Value),
+                    FilterOperator.Number.LessThanOrEqual => PropertyExpression.GenerateBinary<T>(ExpressionType.LessThanOrEqual, Value),
+                    FilterOperator.Number.Empty => PropertyExpression.GenerateBinary<T>(ExpressionType.Equal, null),
+                    FilterOperator.Number.NotEmpty => PropertyExpression.GenerateBinary<T>(ExpressionType.NotEqual, null),
+                    _ => x => true
+                };
             }
-            else
+
+            if (fieldType.IsDateTime)
             {
-                return new Func<T, bool>(x => true);
+                if (Value == null && Operator != FilterOperator.DateTime.Empty && Operator != FilterOperator.DateTime.NotEmpty)
+                    return x => true;
+
+                return Operator switch
+                {
+                    FilterOperator.DateTime.Is => PropertyExpression.GenerateBinary<T>(ExpressionType.Equal, Value),
+                    FilterOperator.DateTime.IsNot => PropertyExpression.GenerateBinary<T>(ExpressionType.NotEqual, Value),
+                    FilterOperator.DateTime.After => PropertyExpression.GenerateBinary<T>(ExpressionType.GreaterThan, Value),
+                    FilterOperator.DateTime.OnOrAfter => PropertyExpression.GenerateBinary<T>(ExpressionType.GreaterThanOrEqual, Value),
+                    FilterOperator.DateTime.Before => PropertyExpression.GenerateBinary<T>(ExpressionType.LessThan, Value),
+                    FilterOperator.DateTime.OnOrBefore => PropertyExpression.GenerateBinary<T>(ExpressionType.LessThanOrEqual, Value),
+                    FilterOperator.DateTime.Empty => PropertyExpression.GenerateBinary<T>(ExpressionType.Equal, null),
+                    FilterOperator.DateTime.NotEmpty => PropertyExpression.GenerateBinary<T>(ExpressionType.NotEqual, null),
+                    _ => x => true
+                };
             }
 
-            var ex = Expression.Lambda<Func<T, bool>>(comparison, parameter);
+            if (fieldType.IsBoolean)
+            {
+                if (Value == null)
+                    return x => true;
 
-            return ex.Compile();
+                return Operator switch
+                {
+                    FilterOperator.Boolean.Is => PropertyExpression.GenerateBinary<T>(ExpressionType.Equal, Value),
+                    _ => x => true
+                };
+            }
+
+            if (fieldType.IsEnum)
+            {
+                if (Value == null)
+                    return x => true;
+
+                return Operator switch
+                {
+                    FilterOperator.Enum.Is => PropertyExpression.GenerateBinary<T>(ExpressionType.Equal, Value),
+                    FilterOperator.Enum.IsNot => PropertyExpression.GenerateBinary<T>(ExpressionType.NotEqual, Value),
+                    _ => x => true
+                };
+            }
+
+            if (fieldType.IsGuid)
+            {
+                return Operator switch
+                {
+                    FilterOperator.Guid.Equal => PropertyExpression.GenerateBinary<T>(ExpressionType.Equal, Value),
+                    FilterOperator.Guid.NotEqual => PropertyExpression.GenerateBinary<T>(ExpressionType.NotEqual, Value),
+                    _ => x => true
+                };
+            }
+
+            return x => true;
         }
 
+        public FilterDefinition<T> Clone()
+        {
+            return new FilterDefinition<T>
+            {
+                Column = Column,
+                DataGrid = DataGrid,
+                FilterFunction = FilterFunction,
+                Operator = Operator,
+                PropertyExpression = PropertyExpression,
+                Title = Title,
+                Value = Value,
+            };
+        }
     }
 }

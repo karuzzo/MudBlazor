@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,7 +9,7 @@ using MudBlazor.Utilities;
 
 namespace MudBlazor
 {
-    public class BaseMudThemeProvider : ComponentBase
+    public class BaseMudThemeProvider : ComponentBase, IDisposable
     {
         /// <summary>
         /// The theme used by the application.
@@ -22,8 +23,11 @@ namespace MudBlazor
         [Parameter]
         public bool DefaultScrollbar { get; set; }
 
-        #region Dark mode handeling
+        private event Func<bool, Task> _darkLightModeChanged;
 
+        #region Dark mode handling
+
+        [DynamicDependency(nameof(SystemPreferenceChanged))]
         public BaseMudThemeProvider()
         {
             _dotNetRef = DotNetObjectReference.Create(this);
@@ -41,7 +45,21 @@ namespace MudBlazor
             return await JsRuntime.InvokeAsync<bool>("darkModeChange", _dotNetRef);
         }
 
-        private bool _isDarkMode;
+        public async Task WatchSystemPreference(Func<bool, Task> functionOnChange)
+        {
+            _darkLightModeChanged += functionOnChange;
+            await JsRuntime.InvokeVoidAsync("watchDarkThemeMedia", _dotNetRef);
+        }
+
+        [JSInvokable]
+        public async Task SystemPreferenceChanged(bool isDarkMode)
+        {
+            var task = _darkLightModeChanged?.Invoke(isDarkMode);
+            if (task != null)
+                await task;
+        }
+
+        internal bool _isDarkMode;
 
         /// <summary>
         /// The active palette of the theme.
@@ -83,7 +101,7 @@ namespace MudBlazor
         {
             var theme = new StringBuilder();
             theme.AppendLine("<style>");
-            theme.Append(":root");
+            theme.Append(Theme.PseudoCss.Scope);
             theme.AppendLine("{");
             GenerateTheme(theme);
             theme.AppendLine("}");
@@ -114,8 +132,10 @@ namespace MudBlazor
 
         protected virtual void GenerateTheme(StringBuilder theme)
         {
+            if (Theme == null)
+                return;
             var palette = _isDarkMode == false ? Theme.Palette : Theme.PaletteDark;
-            
+
             //Palette
             theme.AppendLine($"--{Palette}-black: {palette.Black};");
             theme.AppendLine($"--{Palette}-white: {palette.White};");
@@ -406,6 +426,11 @@ namespace MudBlazor
             theme.AppendLine($"--{Zindex}-popover: {Theme.ZIndex.Popover};");
             theme.AppendLine($"--{Zindex}-snackbar: {Theme.ZIndex.Snackbar};");
             theme.AppendLine($"--{Zindex}-tooltip: {Theme.ZIndex.Tooltip};");
+        }
+
+        public void Dispose()
+        {
+            _darkLightModeChanged = null;
         }
     }
 }

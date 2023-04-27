@@ -42,6 +42,9 @@ namespace MudBlazor.UnitTests.Mocks
             if (breakpoint == Breakpoint.None)
                 return false;
 
+            if (breakpoint == Breakpoint.Always)
+                return true;
+
             return IsMediaSize(breakpoint, await GetBreakpoint());
         }
 
@@ -49,6 +52,9 @@ namespace MudBlazor.UnitTests.Mocks
         {
             if (breakpoint == Breakpoint.None)
                 return false;
+
+            if (breakpoint == Breakpoint.Always)
+                return true;
 
             return breakpoint switch
             {
@@ -71,9 +77,20 @@ namespace MudBlazor.UnitTests.Mocks
 
         public async Task<Breakpoint> GetBreakpoint() => GetBreakpointInternal();
 
-        public Task<BreakpointServiceSubscribeResult> Subscribe(Action<Breakpoint> callback) => Task.FromResult(new BreakpointServiceSubscribeResult(Guid.NewGuid(),Breakpoint.Sm));
-        public Task<BreakpointServiceSubscribeResult> Subscribe(Action<Breakpoint> callback, ResizeOptions options) => Task.FromResult(new BreakpointServiceSubscribeResult(Guid.NewGuid(), Breakpoint.Sm));
-        public Task<bool> Unsubscribe(Guid subscriptionId) => Task.FromResult(true);
+        [Obsolete($"Use {nameof(SubscribeAsync)} instead. This will be removed in v7.")]
+        public Task<BreakpointServiceSubscribeResult> Subscribe(Action<Breakpoint> callback) => SubscribeAsync(callback);
+
+        public Task<BreakpointServiceSubscribeResult> SubscribeAsync(Action<Breakpoint> callback) => Task.FromResult(new BreakpointServiceSubscribeResult(Guid.NewGuid(), Breakpoint.Sm));
+
+        [Obsolete($"Use {nameof(SubscribeAsync)} instead. This will be removed in v7.")]
+        public Task<BreakpointServiceSubscribeResult> Subscribe(Action<Breakpoint> callback, ResizeOptions options) => SubscribeAsync(callback, options);
+
+        public Task<BreakpointServiceSubscribeResult> SubscribeAsync(Action<Breakpoint> callback, ResizeOptions options) => Task.FromResult(new BreakpointServiceSubscribeResult(Guid.NewGuid(), Breakpoint.Sm));
+
+        [Obsolete($"Use {nameof(UnsubscribeAsync)} instead. This will be removed in v7.")]
+        public Task<bool> Unsubscribe(Guid subscriptionId) => UnsubscribeAsync(subscriptionId);
+
+        public Task<bool> UnsubscribeAsync(Guid subscriptionId) => Task.FromResult(true);
 
         private Breakpoint GetBreakpointInternal()
         {

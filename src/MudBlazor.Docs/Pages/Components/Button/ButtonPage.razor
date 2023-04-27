@@ -20,7 +20,7 @@
                         <Description>Elevation can be removed with the <CodeInline>DisableElevation</CodeInline> bool.<CodeInline>Color</CodeInline> property only applies to the text.</Description>
                     </SectionHeader>
                     <SectionContent Code="ButtonElevationExample">
-                        <ButtonTextExample/>
+                        <ButtonElevationExample/>
                     </SectionContent>
                 </DocsPageSection>
             </SectionSubGroups>
@@ -64,7 +64,10 @@
         
         <DocsPageSection>
             <SectionHeader Title="Sizes">
-                <Description></Description>
+                <Description>
+                    The default button size is <CodeInline>Size.Medium</CodeInline> and, by default, the icon size uses the button size.
+                    <br />Use <CodeInline>IconSize</CodeInline> to set a different icon size.
+                </Description>
             </SectionHeader>
             <SectionContent Code="ButtonSizeExample" ShowCode="false">
                 <ButtonSizeExample/>
@@ -82,7 +85,7 @@
 
         <DocsPageSection>
             <SectionHeader Title="Link Button">
-                <Description>Set the <CodeInline>Link</CodeInline> parameter and the MudButton will render an anchor element. If you also set the <CodeInline>Target</CodeInline> parameter to <CodeInline>_blank</CodeInline>, the component will add <CodeInline>rel="noopener"</CodeInline> automatically.
+                <Description>Set the <CodeInline>Href</CodeInline> parameter and the MudButton will render an anchor element. If you also set the <CodeInline>Target</CodeInline> parameter to <CodeInline>_blank</CodeInline>, the component will add <CodeInline>rel="noopener"</CodeInline> automatically.
                     If you set the <CodeInline>Disabled</CodeInline> parameter to <CodeInline>true</CodeInline>, the component will render a button with no <CodeInline>href</CodeInline> attribute.
                 </Description>
             </SectionHeader>

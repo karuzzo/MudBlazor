@@ -3,12 +3,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using MudBlazor.Extensions;
 using MudBlazor.Utilities;
-
 
 namespace MudBlazor
 {
+#nullable enable
     public partial class MudAlert : MudComponentBase
     {
         protected string Classname =>
@@ -35,7 +34,7 @@ namespace MudBlazor
             };
         }
 
-        [CascadingParameter] public bool RightToLeft { get; set; }
+        [CascadingParameter(Name = "RightToLeft")] public bool RightToLeft { get; set; }
 
         /// <summary>
         /// Sets the position of the text to the start (Left in LTR and right in RTL).
@@ -122,18 +121,18 @@ namespace MudBlazor
         /// </summary>
         [Parameter]
         [Category(CategoryTypes.Alert.Behavior)]
-        public RenderFragment ChildContent { get; set; }
+        public RenderFragment? ChildContent { get; set; }
 
         /// <summary>
         /// Custom icon, leave unset to use the standard icon which depends on the Severity
         /// </summary>
         [Parameter]
         [Category(CategoryTypes.Alert.Appearance)]
-        public string Icon { get; set; }
+        public string? Icon { get; set; }
 
-        protected string _icon;
+        protected string? _icon;
 
-        private Task OnCloseIconClickAsync()
+        internal Task OnCloseIconClickAsync()
         {
             if (CloseIconClicked.HasDelegate)
             {
@@ -143,6 +142,8 @@ namespace MudBlazor
             return Task.CompletedTask;
         }
 
+        //If we can check this exception can include the coverage again
+        [ExcludeFromCodeCoverage]
         protected override void OnParametersSet()
         {
             if (!string.IsNullOrEmpty(Icon))
@@ -169,5 +170,3 @@ namespace MudBlazor
         [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
     }
 }
-
-

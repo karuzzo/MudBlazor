@@ -4,6 +4,8 @@
 
 using System;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
+using MudBlazor.Interfaces;
 using MudBlazor.Utilities;
 
 namespace MudBlazor
@@ -20,6 +22,7 @@ namespace MudBlazor
         .Build();
 
         [CascadingParameter] private MudDialogInstance DialogInstance { get; set; }
+        [CascadingParameter(Name = "IsNested")] private bool IsNested { get; set; }
 
         [Inject] public IDialogService DialogService { get; set; }
 
@@ -51,6 +54,16 @@ namespace MudBlazor
         [Parameter]
         [Category(CategoryTypes.Dialog.Misc)]  // Behavior and Appearance
         public DialogOptions Options { get; set; }
+
+        /// <summary>
+        /// Defines delegate with custom logic when user clicks overlay behind dialogue.
+        /// Is being invoked instead of default "Backdrop Click" logic.
+        /// Setting DisableBackdropClick to "true" disables both - OnBackdropClick as well
+        /// as the default logic.
+        /// </summary>
+        [Parameter]
+        [Category(CategoryTypes.Dialog.Behavior)]
+        public EventCallback<MouseEventArgs> OnBackdropClick { get; set; }
 
         /// <summary>
         /// No padding at the sides
@@ -103,7 +116,14 @@ namespace MudBlazor
         /// </summary>
         [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
 
-        private bool IsInline => DialogInstance == null;
+        /// <summary>
+        /// Define the element that will receive the focus when the dialog is opened
+        /// </summary>
+        [Parameter]
+        [Category(CategoryTypes.Dialog.Behavior)]
+        public DefaultFocus DefaultFocus { get; set; }
+
+        private bool IsInline => IsNested || DialogInstance == null;
 
         private IDialogReference _reference;
 
@@ -152,20 +172,12 @@ namespace MudBlazor
                 else if (_reference != null)
                 {
                     if (IsVisible)
-                        (_reference.Dialog as MudDialog)?.ForceUpdate(); // forward render update to instance
+                        (_reference.Dialog as IMudStateHasChanged)?.StateHasChanged(); // forward render update to instance
                     else
                         Close(); // if we still have reference but it's not visible call Close
                 }
             }
             base.OnAfterRender(firstRender);
-        }
-
-        /// <summary>
-        /// Used for forwarding state changes from inlined dialog to its instance
-        /// </summary>
-        internal void ForceUpdate()
-        {
-            StateHasChanged();
         }
 
         /// <summary>
@@ -183,7 +195,8 @@ namespace MudBlazor
         protected override void OnInitialized()
         {
             base.OnInitialized();
-            DialogInstance?.Register(this);
+            if (!IsNested)
+                DialogInstance?.Register(this);
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using MudBlazor.Extensions;
 using MudBlazor.Utilities;
 
 namespace MudBlazor
@@ -10,11 +12,11 @@ namespace MudBlazor
     {
         protected string Classname =>
         new CssBuilder("mud-list-item")
-          .AddClass("mud-list-item-dense", Dense || MudList?.Dense == true)
+          .AddClass("mud-list-item-dense", (Dense ?? MudList?.Dense) ?? false)
           .AddClass("mud-list-item-gutters", !DisableGutters && !(MudList?.DisableGutters == true))
           .AddClass("mud-list-item-clickable", MudList?.Clickable)
           .AddClass("mud-ripple", MudList?.Clickable == true && !DisableRipple && !Disabled)
-          .AddClass("mud-selected-item", _selected && !Disabled)
+          .AddClass($"mud-selected-item mud-{MudList?.Color.ToDescriptionString()}-text mud-{MudList?.Color.ToDescriptionString()}-hover", _selected && !Disabled)
           .AddClass("mud-list-item-disabled", Disabled)
           .AddClass(Class)
         .Build();
@@ -22,6 +24,8 @@ namespace MudBlazor
         [Inject] protected NavigationManager UriHelper { get; set; }
 
         [CascadingParameter] protected MudList MudList { get; set; }
+
+        private bool _onClickHandlerPreventDefault = false;
 
         /// <summary>
         /// The text to display
@@ -136,7 +140,7 @@ namespace MudBlazor
         /// </summary>
         [Parameter]
         [Category(CategoryTypes.List.Appearance)]
-        public bool Dense { get; set; }
+        public bool? Dense { get; set; }
 
         /// <summary>
         /// If true, the left and right padding is removed.
@@ -196,6 +200,14 @@ namespace MudBlazor
         [Category(CategoryTypes.List.Behavior)]
         public RenderFragment ChildContent { get; set; }
 
+        [Parameter]
+        [Category(CategoryTypes.List.Behavior)]
+        public bool OnClickHandlerPreventDefault
+        {
+            get => _onClickHandlerPreventDefault;
+            set => _onClickHandlerPreventDefault = value;
+        }
+
         /// <summary>
         /// Add child list items here to create a nested list.
         /// </summary>
@@ -209,37 +221,83 @@ namespace MudBlazor
         [Parameter]
         public EventCallback<MouseEventArgs> OnClick { get; set; }
 
+        protected async Task OnClickHandlerAsync(MouseEventArgs eventArgs)
+        {
+            if (Disabled)
+                return;
+            if (!_onClickHandlerPreventDefault)
+            {
+                if (NestedList != null)
+                {
+                    Expanded = !Expanded;
+                }
+                else if (Href != null)
+                {
+                    if (MudList is not null)
+                    {
+                        await MudList.SetSelectedValueAsync(Value);
+                    }
+                    await OnClick.InvokeAsync(eventArgs);
+                    UriHelper.NavigateTo(Href, ForceLoad);
+                }
+                else
+                {
+                    if (MudList is not null)
+                    {
+                        await MudList.SetSelectedValueAsync(Value);
+                    }
+                    await OnClick.InvokeAsync(eventArgs);
+                    if (Command?.CanExecute(CommandParameter) ?? false)
+                    {
+                        Command.Execute(CommandParameter);
+                    }
+                }
+            }
+            else
+            {
+                await OnClick.InvokeAsync(eventArgs);
+            }
+        }
+
+        [Obsolete($"Use {nameof(OnClickHandlerAsync)} instead. This will be removed in v7")]
         protected void OnClickHandler(MouseEventArgs ev)
         {
             if (Disabled)
                 return;
-            if (NestedList != null)
+            if (!_onClickHandlerPreventDefault)
             {
-                Expanded = !Expanded;
-            }
-            else if (Href != null)
-            {
-                MudList?.SetSelectedValue(this.Value);
-                OnClick.InvokeAsync(ev);
-                UriHelper.NavigateTo(Href, ForceLoad);
+                if (NestedList != null)
+                {
+                    Expanded = !Expanded;
+                }
+                else if (Href != null)
+                {
+                    MudList?.SetSelectedValueAsync(this.Value);
+                    OnClick.InvokeAsync(ev);
+                    UriHelper.NavigateTo(Href, ForceLoad);
+                }
+                else
+                {
+                    MudList?.SetSelectedValueAsync(this.Value);
+                    OnClick.InvokeAsync(ev);
+                    if (Command?.CanExecute(CommandParameter) ?? false)
+                    {
+                        Command.Execute(CommandParameter);
+                    }
+                }
             }
             else
             {
-                MudList?.SetSelectedValue(this.Value);
                 OnClick.InvokeAsync(ev);
-                if (Command?.CanExecute(CommandParameter) ?? false)
-                {
-                    Command.Execute(CommandParameter);
-                }
             }
         }
 
-        protected override void OnInitialized()
+        protected override async Task OnInitializedAsync()
         {
             _expanded = InitiallyExpanded;
             if (MudList != null)
             {
-                MudList.Register(this);
+                await MudList.RegisterAsync(this);
                 OnListParametersChanged();
                 MudList.ParametersChanged += OnListParametersChanged;
             }
@@ -248,11 +306,11 @@ namespace MudBlazor
         private Typo _textTypo;
         private void OnListParametersChanged()
         {
-            if (Dense || MudList?.Dense == true)
+            if ((Dense ?? MudList?.Dense) ?? false)
             {
                 _textTypo = Typo.body2;
             }
-            else if (!Dense || !MudList?.Dense == true)
+            else if (!((Dense ?? MudList?.Dense) ?? false))
             {
                 _textTypo = Typo.body1;
             }

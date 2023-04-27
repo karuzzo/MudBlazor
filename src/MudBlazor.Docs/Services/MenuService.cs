@@ -68,7 +68,6 @@ namespace MudBlazor.Docs.Services
             .AddItem("Highlighter", typeof(MudHighlighter))
             .AddItem("Element", typeof(MudElement))
             .AddItem("Focus Trap", typeof(MudFocusTrap))
-            .AddItem("File Upload", typeof(MudFileUploader))
             .AddItem("TreeView", typeof(MudTreeView<T>), typeof(MudTreeViewItem<T>), typeof(MudTreeViewItemToggleButton))
             .AddItem("Breadcrumbs", typeof(MudBreadcrumbs))
             .AddItem("ScrollToTop", typeof(MudScrollToTop))
@@ -78,6 +77,7 @@ namespace MudBlazor.Docs.Services
             .AddItem("Carousel", typeof(MudCarousel<T>), typeof(MudCarouselItem))
             .AddItem("Timeline", typeof(MudTimeline), typeof(MudTimelineItem))
             .AddItem("Pagination", typeof(MudPagination))
+            .AddItem("Stack", typeof(MudStack))
 
             //GROUPS
 
@@ -93,6 +93,7 @@ namespace MudBlazor.Docs.Services
                 .AddItem("Form", typeof(MudForm))
                 .AddItem("Autocomplete", typeof(MudAutocomplete<T>))
                 .AddItem("Field", typeof(MudField))
+                .AddItem("File Upload", typeof(MudFileUpload<T>))
             )
 
             //Pickers
@@ -216,7 +217,7 @@ namespace MudBlazor.Docs.Services
                 new DocsLink {Title = "Colors", Href = "features/colors"},
                 new DocsLink {Title = "Elevation", Href = "features/elevation"},
                 new DocsLink {Title = "Converters", Href = "features/converters"},
-                new DocsLink {Title = "Icons", Href = "features/icons"},
+                new DocsLink {Title = "Icon Reference", Href = "features/icons"}, // <-- note: title changed from "Icons" to "Icon Reference" to avoid confusion in Search box with the MudIcon page which is also called "Icons"
                 new DocsLink {Title = "Masking", Href = "features/masking"},
                 new DocsLink {Title = "RTL Languages", Href = "features/rtl-languages"},
             }.OrderBy(x => x.Title);
@@ -233,6 +234,7 @@ namespace MudBlazor.Docs.Services
             new DocsLink {Title = "Palette", Href = "customization/palette"},
             new DocsLink {Title = "Typography", Href = "customization/typography"},
             new DocsLink {Title = "z-index", Href = "customization/z-index"},
+            new DocsLink {Title = "Pseudo CSS", Href = "customization/pseudocss"},
         }.OrderBy(x => x.Title);
         
         private IEnumerable<DocsLink> _utilities;
